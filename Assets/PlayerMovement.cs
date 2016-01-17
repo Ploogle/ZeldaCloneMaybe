@@ -24,49 +24,68 @@ public class PlayerMovement : MonoBehaviour {
 
         //ChasePlayerState chase = new ChasePlayerState();
         //chase.AddTransition(Transition.LostPlayer, StateID.FollowingPath);
+        FSM = new PlayerFSM(gameObject);
 
         PlayerFSM.MoveState move = new PlayerFSM.MoveState();
 
-        PlayerFSM.JumpState jump = new PlayerFSM.JumpState();
+        //PlayerFSM.JumpState jump = new PlayerFSM.JumpState();
 
         PlayerFSM.AttackState attack = new PlayerFSM.AttackState();
 
-        FSM = new PlayerFSM(gameObject);
-        //fsm.AddState(follow);
-        //fsm.AddState(chase);
+        FSM.AddState(move);
+        FSM.AddState(attack);
     }
 
-	void Update()
+    void Update()
     {
-        Quaternion facingTarget;
-        Quaternion currentRotation;
-        Vector3 moveDirection;
-
-        // Relative to world X and Z axes.
-        moveDirection = Vector3.forward * Input.GetAxisRaw("Vertical") +
-                        Vector3.right * Input.GetAxisRaw("Horizontal");
-
-        currentRotation = transform.rotation;
-        transform.LookAt(transform.position + moveDirection);
-        facingTarget = transform.rotation;
-        transform.rotation = Quaternion.Lerp(currentRotation, facingTarget, rotationSpeed);
-
-        //if (moveDirection != Vector3.zero)
-        //    myRigidbody.MovePosition(transform.position + transform.forward * movementSpeed);
-
-        if (moveDirection != Vector3.zero)
-            myRigidbody.MovePosition(transform.position + moveDirection * movementSpeed);
+        FSM.Update();
     }
+
+	//void Update()
+ //   {
+ //       Quaternion facingTarget;
+ //       Quaternion currentRotation;
+ //       Vector3 moveDirection;
+
+ //       // Relative to world X and Z axes.
+ //       moveDirection = Vector3.forward * Input.GetAxisRaw("Vertical") +
+ //                       Vector3.right * Input.GetAxisRaw("Horizontal");
+
+ //       currentRotation = transform.rotation;
+ //       transform.LookAt(transform.position + moveDirection);
+ //       facingTarget = transform.rotation;
+ //       transform.rotation = Quaternion.Lerp(currentRotation, facingTarget, rotationSpeed);
+
+ //       //if (moveDirection != Vector3.zero)
+ //       //    myRigidbody.MovePosition(transform.position + transform.forward * movementSpeed);
+
+ //       if (moveDirection != Vector3.zero)
+ //           myRigidbody.MovePosition(transform.position + moveDirection * movementSpeed);
+ //   }
 }
 
 public class PlayerFSM : FSMSystem
 {
     public PlayerFSM(GameObject actor) : base(actor) { }
 
-    public new enum States
+    public class PlayerStates
     {
-        Move,
-        Attack,
+        public const int NONE = 0;
+        public const int MOVE = 1;
+        public const int ATTACK = 2;
+    }
+
+    public class AttackInput
+    {
+        public const int LIGHT = 0;
+        public const int HEAVY = 1;
+    }
+
+    public new enum SubStates
+    {
+        Idle,
+        Walk,
+        Run,
         Jump
     }
 
@@ -74,24 +93,31 @@ public class PlayerFSM : FSMSystem
     {
         Transform myTransform;
         Rigidbody myRigidbody;
-        float movementSpeed = .1f;
-        float rotationSpeed = .3f;//.5f;
+        float movementSpeed = 2.5f;
+        float rotationSpeed = 10f;//.5f;
 
-        public override void OnEnter()
+        public MoveState()
         {
-            base.OnEnter();
-
-            myTransform = FSM.Actor.transform;
-
-            myRigidbody = FSM.Actor.GetComponent<Rigidbody>();
+            stateID = PlayerStates.MOVE;
         }
 
-        public override void CheckEdges(GameObject actor)
+        public override void OnEnter(DataPackageBase data)
         {
-            // throw new NotImplementedException();
+            //base.OnEnter();
+
+            if(myTransform == null)
+                myTransform = FSM.Actor.transform;
+
+            if(myRigidbody == null)
+                myRigidbody = FSM.Actor.GetComponent<Rigidbody>();
         }
 
-        public override void Act(GameObject actor)
+        //public override void CheckEdges(GameObject actor)
+        //{
+        //    // throw new NotImplementedException();
+        //}
+
+        protected override void OnUpdate()
         {
             Quaternion facingTarget;
             Quaternion currentRotation;
@@ -104,39 +130,93 @@ public class PlayerFSM : FSMSystem
             currentRotation = myTransform.rotation;
             myTransform.LookAt(myTransform.position + moveDirection);
             facingTarget = myTransform.rotation;
-            myTransform.rotation = Quaternion.Lerp(currentRotation, facingTarget, rotationSpeed);
+            myTransform.rotation = Quaternion.Lerp(currentRotation, facingTarget, rotationSpeed * Time.deltaTime);
 
             //if (moveDirection != Vector3.zero)
-            //    myRigidbody.MovePosition(transform.position + transform.forward * movementSpeed);
+            //    myRigidbody.MovePosition(transform.position + transform.forward * movementSpeed * Time.deltaTime);
 
             if (moveDirection != Vector3.zero)
-                myRigidbody.MovePosition(myTransform.position + moveDirection * movementSpeed);
+                myRigidbody.MovePosition(myTransform.position + moveDirection * movementSpeed * Time.deltaTime);
+
+            if (Input.GetButtonDown("Light Attack"))
+            {
+                Log.Make("Light Attack");
+                
+                ChangeState(PlayerStates.ATTACK, new AttackState.DataPackage(inputType: AttackInput.LIGHT));
+            }
+            else if (Input.GetButtonDown("Heavy Attack"))
+            {
+                Log.Make("Heavy Attack");
+
+                ChangeState(PlayerStates.ATTACK, new AttackState.DataPackage(inputType: AttackInput.HEAVY));
+            }
+
         }
+
+        
     }
 
     public class JumpState : FSMState
     {
-        public override void CheckEdges(GameObject actor)
+        public override void OnEnter(DataPackageBase data)
         {
-            //throw new NotImplementedException();
+           // base.OnEnter();
         }
 
-        public override void Act(GameObject actor)
+        protected override void OnUpdate()
         {
-            //throw new NotImplementedException();
+
         }
     }
 
-    public class AttackState : FSMSnapbackState
+    public class AttackState : FSMState
     {
-        public override bool ShouldLeave()
+        float counter = 0;
+
+        Rigidbody myRigidbody;
+
+        int AttackType = 0;
+
+        public AttackState()
         {
-            return false;
+            stateID = PlayerStates.ATTACK;
         }
 
-        public override void Act(GameObject actor)
+        public override void OnEnter(DataPackageBase data)
         {
-            //throw new NotImplementedException();
+            DataPackage package = data as DataPackage;
+
+            counter = 0;
+
+            if (myRigidbody == null)
+                myRigidbody = FSM.Actor.GetComponent<Rigidbody>();
+
+            AttackType = package.InputType;
+        }
+
+        protected override void OnUpdate()
+        {
+            counter += Time.deltaTime;
+
+            if(counter < .1f)
+            {
+                myRigidbody.MovePosition(myRigidbody.transform.position + myRigidbody.transform.forward * (AttackType == AttackInput.LIGHT ? .1f : .25f));
+            }
+
+            if (counter > (AttackType == AttackInput.LIGHT ? .2f : .4f))
+            {
+                ChangeState(PlayerStates.MOVE, null);
+            }
+        }
+
+        public class DataPackage : DataPackageBase
+        {
+            public int InputType;
+
+            public DataPackage(int inputType = AttackInput.LIGHT)
+            {
+                InputType = inputType;
+            }
         }
     }
 

@@ -1,207 +1,13 @@
-﻿using System;
+﻿
+#define DEBUG_LOG
+
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+
 // TODO: Rewrite this whole file.
-
-/**
-A Finite State Machine System based on Chapter 3.1 of Game Programming Gems 1 by Eric Dybsand
- 
-Written by Roberto Cezar Bianchini, July 2010
- 
- 
-How to use:
-	1. Place the labels for the transitions and the states of the Finite State System
-	    in the corresponding enums.
- 
-	2. Write new class(es) inheriting from FSMState and fill each one with pairs (transition-state).
-	    These pairs represent the state S2 the FSMSystem should be if while being on state S1, a
-	    transition T is fired and state S1 has a transition from it to S2. Remember this is a Deterministic FSM. 
-	    You can't have one transition leading to two different states.
- 
-	   Method Reason is used to determine which transition should be fired.
-	   You can write the code to fire transitions in another place, and leave this method empty if you
-	   feel it's more appropriate to your project.
- 
-	   Method Act has the code to perform the actions the NPC is supposed do if it's on this state.
-	   You can write the code for the actions in another place, and leave this method empty if you
-	   feel it's more appropriate to your project.
- 
-	3. Create an instance of FSMSystem class and add the states to it.
- 
-	4. Call Reason and Act (or whichever methods you have for firing transitions and making the NPCs
-	     behave in your game) from your Update or FixedUpdate methods.
- 
-	Asynchronous transitions from Unity Engine, like OnTriggerEnter, SendMessage, can also be used, 
-	just call the Method PerformTransition from your FSMSystem instance with the correct Transition 
-	when the event occurs.
- 
- 
- 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
-INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE 
-AND NON-INFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
-DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
-
-
-    // TODO: Is this necessary?
-/// <summary>
-/// Place the labels for the Transitions in this enum.
-/// Don't change the first label, NullTransition as FSMSystem class uses it.
-/// </summary>
-//public enum Edge
-//{
-//    NullTransition = 0, // Use this transition to represent a non-existing transition in your system
-//}
-
-/// <summary>
-/// Place the labels for the States in this enum.
-/// Don't change the first label, NullTransition as FSMSystem class uses it.
-/// </summary>
-//public enum StateID
-//{
-//    NullStateID = 0, // Use this ID to represent a non-existing State in your system	
-//    Move        = 1,
-//    Jump        = 2,
-//    Attack      = 3,
-//}
-
-/// <summary>
-/// Conditional states based on fuzzy logic. (i.e. Movement state with Idle, Walk, Run fuzzy states)
-/// </summary>
-//public enum SubStateID
-//{
-//    None = 0,
-//}
-
-///// <summary>
-///// This class represents the States in the Finite State System.
-///// Each state has a Dictionary with pairs (transition-state) showing
-///// which state the FSM should be if a transition is fired while this state
-///// is the current state.
-///// Method Reason is used to determine which transition should be fired .
-///// Method Act has the code to perform the actions the NPC is supposed do if it's on this state.
-///// </summary>
-//public abstract class FSMState
-//{
-//    // Reference to the system we're contained within.
-//    protected FSMSystem FSM;
-
-//    //protected Dictionary<Edge, StateID> map = new Dictionary<Edge, StateID>();
-//    protected StateID stateID;
-//    //protected SubStateID subStateID;
-
-//    // Used to Augment a state based on what it's transitioned from.
-//    protected StateID previousStateID;
-//    protected SubStateID augmentSubStateID;
-
-//    public StateID ID { get { return stateID; } }
-//    public virtual SubStateID GetSubState() { return SubStateID.None; }
-
-//    // Called in FSMSystem.AddState
-//    public void SetFSM(FSMSystem fsm)
-//    {
-//        FSM = fsm;
-//    }
-
-//    //public void AddTransition(Edge trans, StateID id)
-//    //{
-//    //    // Check if anyone of the args is invalid
-//    //    if (trans == Edge.NullTransition)
-//    //    {
-//    //        Debug.LogError("FSMState ERROR: NullTransition is not allowed for a real transition");
-//    //        return;
-//    //    }
-
-//    //    if (id == StateID.NullStateID)
-//    //    {
-//    //        Debug.LogError("FSMState ERROR: NullStateID is not allowed for a real ID");
-//    //        return;
-//    //    }
-
-//    //    // Since this is a Deterministic FSM,
-//    //    //   check if the current transition was already inside the map
-//    //    if (map.ContainsKey(trans))
-//    //    {
-//    //        Debug.LogError("FSMState ERROR: State " + stateID.ToString() + " already has transition " + trans.ToString() +
-//    //                       "Impossible to assign to another state");
-//    //        return;
-//    //    }
-
-//    //    map.Add(trans, id);
-//    //}
-
-//    /// <summary>
-//    /// This method deletes a pair transition-state from this state's map.
-//    /// If the transition was not inside the state's map, an ERROR message is printed.
-//    /// </summary>
-//    //public void DeleteTransition(Edge trans)
-//    //{
-//    //    // Check for NullTransition
-//    //    if (trans == Edge.NullTransition)
-//    //    {
-//    //        Debug.LogError("FSMState ERROR: NullTransition is not allowed");
-//    //        return;
-//    //    }
-
-//    //    // Check if the pair is inside the map before deleting
-//    //    if (map.ContainsKey(trans))
-//    //    {
-//    //        map.Remove(trans);
-//    //        return;
-//    //    }
-//    //    Debug.LogError("FSMState ERROR: Transition " + trans.ToString() + " passed to " + stateID.ToString() +
-//    //                   " was not on the state's transition list");
-//    //}
-
-//    /// <summary>
-//    /// This method returns the new state the FSM should be if
-//    ///    this state receives a transition and 
-//    /// </summary>
-//    //public StateID GetOutputState(StateID trans)
-//    //{
-//    //    // Check if the map has this transition
-//    //    if (map.ContainsKey(trans))
-//    //    {
-//    //        return map[trans];
-//    //    }
-//    //    return StateID.NullStateID;
-//    //}
-
-//    /// <summary>
-//    /// This method is used to set up the State condition before entering it.
-//    /// It is called automatically by the FSMSystem class before assigning it
-//    /// to the current state.
-//    /// </summary>
-//    public virtual void OnEnter() { }
-
-//    /// <summary>
-//    /// This method is used to make anything necessary, as reseting variables
-//    /// before the FSMSystem changes to another one. It is called automatically
-//    /// by the FSMSystem before changing to a new state.
-//    /// </summary>
-//    public virtual void OnLeave() { }
-
-//    /// <summary>
-//    /// This method decides if the state should transition to another on its list
-//    /// NPC is a reference to the object that is controlled by this class
-//    /// </summary>
-//    public abstract void CheckEdges(GameObject actor);
-
-//    /// <summary>
-//    /// This method controls the behavior of the NPC in the game World.
-//    /// Every action, movement or communication the NPC does should be placed here
-//    /// NPC is a reference to the object that is controlled by this class
-//    /// </summary>
-//    public abstract void Act(GameObject actor);
-
-//} // class FSMState
-
-
-
 
 /// <summary>
 /// FSMSystem class represents the Finite State Machine class.
@@ -211,26 +17,25 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 public abstract class FSMSystem
 {
     //private List<FSMState> states;
-    private Dictionary<States, FSMState> states;
+    private Dictionary<int, FSMState> states;
 
     // The only way one can change the state of the FSM is by performing a transition
     // Don't change the CurrentState directly
-    private States currentStateID;
-    public States CurrentStateID { get { return currentStateID; } }
+    private int currentStateID;
+    public int CurrentStateID { get { return currentStateID; } }
     private FSMState currentState;
     public FSMState CurrentState { get { return currentState; } }
 
     public GameObject Actor;
 
-    public enum States { None = 0 }
+    //public enum States { None = 0 }
     public enum SubStates { None = 0}
     
     public FSMSystem(GameObject actor)
     {
         Actor = actor;
-
-        //states = new List<FSMState>();
-        states = new Dictionary<States, FSMState>();
+        
+        states = new Dictionary<int, FSMState>();
     }
 
     /// <summary>
@@ -246,37 +51,32 @@ public abstract class FSMSystem
             Debug.LogError("FSM ERROR: Null reference is not allowed");
         }
 
+        state.SetFSM(this);
+        states.Add(state.ID, state);
+        
+        Log.Make("Added state " + state.ToString() + " ( " + state.ID + ")");
+
+
         // First State inserted is also the Initial state,
         //   the state the machine is in when the simulation begins
-        if (states.Count == 0)
+        if (states.Count == 1)
         {
-            states.Add(state.ID, state);
-            currentState = state;
-            currentStateID = state.ID;
+            //currentState = state;
+            //currentStateID = state.ID;
 
-            state.SetFSM(this);
+            //currentState.OnEnter();
 
-            return;
+            ChangeState(state.ID);
         }
 
-        // Add the state to the List if it's not inside it
-        //foreach (FSMState s in states)
-        //{
-        //    if (state.ID == s.ID)
-        //    {
-        //        Debug.LogError("FSM ERROR: Impossible to add state " + s.ID.ToString() +
-        //                       " because state has already been added");
-        //        return;
-        //    }
-        //}
-        //states.Add(s);
+
     }
 
     /// <summary>
     /// This method delete a state from the FSM List if it exists, 
     ///   or prints an ERROR message if the state was not on the List.
     /// </summary>
-    public void DeleteState(States state)
+    public void DeleteState(int state)
     {
         if (states.ContainsKey(state))
             states.Remove(state);
@@ -288,54 +88,42 @@ public abstract class FSMSystem
     ///  doesn't have a target state for the transition passed, 
     /// an ERROR message is printed.
     /// </summary>
-    public void ChangeState(States state)
+   // public void ChangeState(int state, object[] parameters)
+   public void ChangeState(int state, FSMState.DataPackageBase data)
     {
-        // Check for NullTransition before changing the current state
-        //if (state == StateID.NullStateID)
-        //{
-        //    Debug.LogError("FSM ERROR: NullStateID is not allowed.");
-        //    return;
-        //}
-
         if(!states.ContainsKey(state))
         {
             Debug.LogError("FSM ERROR: No definition for " + state.ToString());
             return;
         }
 
-        //// Check if the currentState has the transition passed as argument
-        //StateID id = currentState.GetOutputState(state);
-        //if (id == StateID.NullStateID)
-        //{
-        //    Debug.LogError("FSM ERROR: State " + currentStateID.ToString() + " does not have a target state " +
-        //                   " for transition " + trans.ToString());
-        //    return;
-        //}
+        if (currentState != null)
+        {
+            //Log.Make("Processing change from " + currentState.ID + " to " + state);
 
-        currentState.OnLeave();
+            currentState.OnLeave();
+        }
+
+        //Log.Make("OnLeave() complete");
 
         currentState = states[state];
 
-        currentState.OnEnter();
+        //Log.Make("Processed change 1");
 
-        //// Update the currentStateID and currentState		
-        //currentStateID = id;
-        //foreach (FSMState state in states)
-        //{
-        //    if (state.ID == currentStateID)
-        //    {
-        //        // Do the post processing of the state before setting the new one
-        //        currentState.OnLeave();
+        currentState.OnEnter(data);
 
-        //        currentState = state;
+        //Log.Make("Processed change 2");
+    }
 
-        //        // Reset the state to its desired condition before it can reason or act
-        //        currentState.OnEnter();
-        //        break;
-        //    }
-        //}
+    public void ChangeState(int state)
+    {
+        ChangeState(state, null);
+    }
 
-    } // PerformTransition()
+    public virtual void Update()
+    {
+        CurrentState.Update();
+    }
 
     /// <summary>
     /// This class represents the States in the Finite State System.
@@ -351,92 +139,35 @@ public abstract class FSMSystem
         protected FSMSystem FSM;
 
         //protected Dictionary<Edge, StateID> map = new Dictionary<Edge, StateID>();
-        protected States stateID;
+        protected int stateID;
         //protected SubStateID subStateID;
 
         // Used to Augment a state based on what it's transitioned from.
-        protected States previousStateID;
+        protected int previousStateID;
         protected SubStates augmentSubStateID;
 
-        public States ID { get { return stateID; } }
+        public int ID { get { return stateID; } }
         public virtual SubStates GetSubState() { return SubStates.None; }
+
+        // If set (during update), ProcessStateChange will change state.
+        int? DestinationState = null;
+        //object[] DestinationStateParameters = null;
+        DataPackageBase DestinationStateDataPackage = null;
 
         // Called in FSMSystem.AddState
         public void SetFSM(FSMSystem fsm)
         {
             FSM = fsm;
         }
+        
+        //public virtual void OnEnter(object[] parameters) { }
 
-        //public void AddTransition(Edge trans, StateID id)
-        //{
-        //    // Check if anyone of the args is invalid
-        //    if (trans == Edge.NullTransition)
-        //    {
-        //        Debug.LogError("FSMState ERROR: NullTransition is not allowed for a real transition");
-        //        return;
-        //    }
+        public virtual void OnEnter(DataPackageBase data) { }
 
-        //    if (id == StateID.NullStateID)
-        //    {
-        //        Debug.LogError("FSMState ERROR: NullStateID is not allowed for a real ID");
-        //        return;
-        //    }
-
-        //    // Since this is a Deterministic FSM,
-        //    //   check if the current transition was already inside the map
-        //    if (map.ContainsKey(trans))
-        //    {
-        //        Debug.LogError("FSMState ERROR: State " + stateID.ToString() + " already has transition " + trans.ToString() +
-        //                       "Impossible to assign to another state");
-        //        return;
-        //    }
-
-        //    map.Add(trans, id);
-        //}
-
-        /// <summary>
-        /// This method deletes a pair transition-state from this state's map.
-        /// If the transition was not inside the state's map, an ERROR message is printed.
-        /// </summary>
-        //public void DeleteTransition(Edge trans)
-        //{
-        //    // Check for NullTransition
-        //    if (trans == Edge.NullTransition)
-        //    {
-        //        Debug.LogError("FSMState ERROR: NullTransition is not allowed");
-        //        return;
-        //    }
-
-        //    // Check if the pair is inside the map before deleting
-        //    if (map.ContainsKey(trans))
-        //    {
-        //        map.Remove(trans);
-        //        return;
-        //    }
-        //    Debug.LogError("FSMState ERROR: Transition " + trans.ToString() + " passed to " + stateID.ToString() +
-        //                   " was not on the state's transition list");
-        //}
-
-        /// <summary>
-        /// This method returns the new state the FSM should be if
-        ///    this state receives a transition and 
-        /// </summary>
-        //public StateID GetOutputState(StateID trans)
-        //{
-        //    // Check if the map has this transition
-        //    if (map.ContainsKey(trans))
-        //    {
-        //        return map[trans];
-        //    }
-        //    return StateID.NullStateID;
-        //}
-
-        /// <summary>
-        /// This method is used to set up the State condition before entering it.
-        /// It is called automatically by the FSMSystem class before assigning it
-        /// to the current state.
-        /// </summary>
-        public virtual void OnEnter() { }
+        public void OnEnter()
+        {
+            OnEnter(null);
+        }
 
         /// <summary>
         /// This method is used to make anything necessary, as reseting variables
@@ -446,31 +177,69 @@ public abstract class FSMSystem
         public virtual void OnLeave() { }
 
         /// <summary>
-        /// This method decides if the state should transition to another on its list
-        /// NPC is a reference to the object that is controlled by this class
+        /// Queues up a state to be transitioned to after the current Update.
         /// </summary>
-        public abstract void CheckEdges(GameObject actor);
+        /// <param name="state"></param>
+       // public void ChangeState(int state, params object[] parameters)
+        public void ChangeState(int state, DataPackageBase data)
+        {
+            Log.Make("Queuing change from " + stateID + " to " + state);
+
+            DestinationState = state;
+            // DestinationStateParameters = parameters;
+            DestinationStateDataPackage = data;
+        }
 
         /// <summary>
-        /// This method controls the behavior of the NPC in the game World.
-        /// Every action, movement or communication the NPC does should be placed here
-        /// NPC is a reference to the object that is controlled by this class
+        /// State logic for the update loop. Implemented by the inheriting state.
         /// </summary>
-        public abstract void Act(GameObject actor);
+        protected abstract void OnUpdate();
 
-    } // class FSMState
+        /// <summary>
+        /// Process any state changes that were made during the Update function.
+        /// </summary>
+        protected void ProcessStateChange()
+        {
+            if (DestinationState != null)
+            {
+                try
+                {
+                    FSM.ChangeState((int)DestinationState, DestinationStateDataPackage);
+                }
+                catch(Exception ex)
+                {
+                    Debug.LogError("Error in FSM.ChangeState: " + ex.ToString());
+                }
+
+                DestinationState = null;
+                DestinationStateDataPackage = null;
+            }
+        }
+
+        /// <summary>
+        /// Encapsulates the OnUpdate() and ProcessStateChange() calls.
+        /// </summary>
+        public void Update()
+        {
+            OnUpdate();
+
+            ProcessStateChange();
+        }
+
+        public abstract class DataPackageBase { }
+    }
 
     public abstract class FSMSnapbackState : FSMState
     {
-        public abstract bool ShouldLeave();
-
-        public override void CheckEdges(GameObject actor)
+        public abstract bool IsDone();
+        
+        private new void ProcessStateChange()
         {
-            if (ShouldLeave())
+            if (IsDone())
             {
                 FSM.ChangeState(previousStateID);
             }
         }
     }
 
-} //class FSMSystem
+}
