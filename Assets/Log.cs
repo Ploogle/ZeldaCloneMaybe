@@ -3,7 +3,7 @@ using System.Collections;
 
 public static class Log
 {
-    static bool LogErrors = false;
+    static bool LogErrors = true;
 
     public static void Make(string s)
     {

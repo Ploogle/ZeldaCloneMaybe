@@ -19,17 +19,10 @@ public class PlayerMovement : MonoBehaviour {
 
     void SetupFSM()
     {
-        //FollowPathState follow = new FollowPathState(path);
-        //follow.AddTransition(Transition.SawPlayer, StateID.ChasingPlayer);
-
-        //ChasePlayerState chase = new ChasePlayerState();
-        //chase.AddTransition(Transition.LostPlayer, StateID.FollowingPath);
         FSM = new PlayerFSM(gameObject);
 
         PlayerFSM.MoveState move = new PlayerFSM.MoveState();
-
-        //PlayerFSM.JumpState jump = new PlayerFSM.JumpState();
-
+        
         PlayerFSM.AttackState attack = new PlayerFSM.AttackState();
 
         FSM.AddState(move);
@@ -40,28 +33,6 @@ public class PlayerMovement : MonoBehaviour {
     {
         FSM.Update();
     }
-
-	//void Update()
- //   {
- //       Quaternion facingTarget;
- //       Quaternion currentRotation;
- //       Vector3 moveDirection;
-
- //       // Relative to world X and Z axes.
- //       moveDirection = Vector3.forward * Input.GetAxisRaw("Vertical") +
- //                       Vector3.right * Input.GetAxisRaw("Horizontal");
-
- //       currentRotation = transform.rotation;
- //       transform.LookAt(transform.position + moveDirection);
- //       facingTarget = transform.rotation;
- //       transform.rotation = Quaternion.Lerp(currentRotation, facingTarget, rotationSpeed);
-
- //       //if (moveDirection != Vector3.zero)
- //       //    myRigidbody.MovePosition(transform.position + transform.forward * movementSpeed);
-
- //       if (moveDirection != Vector3.zero)
- //           myRigidbody.MovePosition(transform.position + moveDirection * movementSpeed);
- //   }
 }
 
 public class PlayerFSM : FSMSystem
@@ -81,20 +52,27 @@ public class PlayerFSM : FSMSystem
         public const int HEAVY = 1;
     }
 
-    public new enum SubStates
-    {
-        Idle,
-        Walk,
-        Run,
-        Jump
-    }
+    //public class SubStates
+    //{
+    //    public const int IDLE = 0;
+    //    public const int WALK = 1;
+    //    public const int RUN = 2;
+    //    public const int JUMP = 3;
+    //}
 
     public class MoveState : FSMState
     {
         Transform myTransform;
         Rigidbody myRigidbody;
-        float movementSpeed = 2.5f;
-        float rotationSpeed = 10f;//.5f;
+        float MOVEMENT_SPEED = 2.5f;
+        float RUNNING_SPEED = 5f;
+        float ROTATION_SPEED = 10f;
+
+        bool isRunning = false;
+
+        float inputTimer = 0f;
+        float idleTimer = 0f;
+        float DOUBLE_TAP_TIME = .1f;
 
         public MoveState()
         {
@@ -103,8 +81,6 @@ public class PlayerFSM : FSMSystem
 
         public override void OnEnter(DataPackageBase data)
         {
-            //base.OnEnter();
-
             if(myTransform == null)
                 myTransform = FSM.Actor.transform;
 
@@ -112,10 +88,10 @@ public class PlayerFSM : FSMSystem
                 myRigidbody = FSM.Actor.GetComponent<Rigidbody>();
         }
 
-        //public override void CheckEdges(GameObject actor)
-        //{
-        //    // throw new NotImplementedException();
-        //}
+        public override void OnLeave()
+        {
+
+        }
 
         protected override void OnUpdate()
         {
@@ -127,16 +103,39 @@ public class PlayerFSM : FSMSystem
             moveDirection = Vector3.forward * Input.GetAxisRaw("Vertical") +
                             Vector3.right * Input.GetAxisRaw("Horizontal");
 
+            if (moveDirection.sqrMagnitude > 0)
+            {
+                //Log.Make("inputTimer: " + inputTimer);
+
+                if(idleTimer > 0 && inputTimer > 0)
+                {
+                    isRunning = true;
+
+                    Log.Make("running");
+                }
+
+                inputTimer += Time.deltaTime;
+                idleTimer = 0;
+            }
+            else
+            {
+                idleTimer += Time.deltaTime;
+                //Log.Make("idleTimer: " + idleTimer);
+                isRunning = false;
+
+                Log.Make("not running");
+
+                if(idleTimer > DOUBLE_TAP_TIME)
+                    inputTimer = 0;
+            }
+
             currentRotation = myTransform.rotation;
             myTransform.LookAt(myTransform.position + moveDirection);
             facingTarget = myTransform.rotation;
-            myTransform.rotation = Quaternion.Lerp(currentRotation, facingTarget, rotationSpeed * Time.deltaTime);
-
-            //if (moveDirection != Vector3.zero)
-            //    myRigidbody.MovePosition(transform.position + transform.forward * movementSpeed * Time.deltaTime);
-
+            myTransform.rotation = Quaternion.Lerp(currentRotation, facingTarget, ROTATION_SPEED * Time.deltaTime);
+            
             if (moveDirection != Vector3.zero)
-                myRigidbody.MovePosition(myTransform.position + moveDirection * movementSpeed * Time.deltaTime);
+                myRigidbody.MovePosition(myTransform.position + moveDirection * (isRunning ? RUNNING_SPEED : MOVEMENT_SPEED ) * Time.deltaTime);
 
             if (Input.GetButtonDown("Light Attack"))
             {
@@ -152,24 +151,23 @@ public class PlayerFSM : FSMSystem
             }
 
         }
-
-        
     }
 
-    public class JumpState : FSMState
-    {
-        public override void OnEnter(DataPackageBase data)
-        {
-           // base.OnEnter();
-        }
+    //public class JumpState : FSMState
+    //{
+    //    public override void OnEnter(DataPackageBase data)
+    //    {
 
-        protected override void OnUpdate()
-        {
+    //    }
 
-        }
-    }
+    //    protected override void OnUpdate()
+    //    {
 
-    public class AttackState : FSMState
+    //    }
+    //}
+
+    //public class AttackState : FSMState
+    public class AttackState : FSMSnapbackState
     {
         float counter = 0;
 
@@ -192,10 +190,17 @@ public class PlayerFSM : FSMSystem
                 myRigidbody = FSM.Actor.GetComponent<Rigidbody>();
 
             AttackType = package.InputType;
+            
+        }
+
+        public override void OnLeave()
+        {
+
         }
 
         protected override void OnUpdate()
         {
+            Log.Make("OnUpdate");
             counter += Time.deltaTime;
 
             if(counter < .1f)
@@ -203,10 +208,16 @@ public class PlayerFSM : FSMSystem
                 myRigidbody.MovePosition(myRigidbody.transform.position + myRigidbody.transform.forward * (AttackType == AttackInput.LIGHT ? .1f : .25f));
             }
 
-            if (counter > (AttackType == AttackInput.LIGHT ? .2f : .4f))
-            {
-                ChangeState(PlayerStates.MOVE, null);
-            }
+            //if (counter > (AttackType == AttackInput.LIGHT ? .2f : .4f))
+            //{
+            //    ChangeState(PlayerStates.MOVE, null);
+            //}
+        }
+
+        public override bool IsDone()
+        {
+            Log.Make("Check...");
+            return (counter > (AttackType == AttackInput.LIGHT ? .2f : .4f));
         }
 
         public class DataPackage : DataPackageBase

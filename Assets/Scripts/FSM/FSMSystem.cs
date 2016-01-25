@@ -23,13 +23,17 @@ public abstract class FSMSystem
     // Don't change the CurrentState directly
     private int currentStateID;
     public int CurrentStateID { get { return currentStateID; } }
+
     private FSMState currentState;
     public FSMState CurrentState { get { return currentState; } }
+
+    private FSMState previousState;
+    public FSMState PreviousState { get { return previousState; } }
 
     public GameObject Actor;
 
     //public enum States { None = 0 }
-    public enum SubStates { None = 0}
+    //public enum SubStates { None = 0}
     
     public FSMSystem(GameObject actor)
     {
@@ -61,15 +65,8 @@ public abstract class FSMSystem
         //   the state the machine is in when the simulation begins
         if (states.Count == 1)
         {
-            //currentState = state;
-            //currentStateID = state.ID;
-
-            //currentState.OnEnter();
-
             ChangeState(state.ID);
         }
-
-
     }
 
     /// <summary>
@@ -99,20 +96,14 @@ public abstract class FSMSystem
 
         if (currentState != null)
         {
-            //Log.Make("Processing change from " + currentState.ID + " to " + state);
-
             currentState.OnLeave();
         }
 
-        //Log.Make("OnLeave() complete");
-
+        previousState = currentState;
+        
         currentState = states[state];
-
-        //Log.Make("Processed change 1");
-
+        
         currentState.OnEnter(data);
-
-        //Log.Make("Processed change 2");
     }
 
     public void ChangeState(int state)
@@ -126,15 +117,10 @@ public abstract class FSMSystem
     }
 
     /// <summary>
-    /// This class represents the States in the Finite State System.
-    /// Each state has a Dictionary with pairs (transition-state) showing
-    /// which state the FSM should be if a transition is fired while this state
-    /// is the current state.
-    /// Method Reason is used to determine which transition should be fired .
-    /// Method Act has the code to perform the actions the NPC is supposed do if it's on this state.
+    /// TODO: Write summary
     /// </summary>
     public abstract class FSMState
-    {
+    { 
         // Reference to the system we're contained within.
         protected FSMSystem FSM;
 
@@ -143,16 +129,17 @@ public abstract class FSMSystem
         //protected SubStateID subStateID;
 
         // Used to Augment a state based on what it's transitioned from.
-        protected int previousStateID;
-        protected SubStates augmentSubStateID;
+        //protected int previousStateID;
+        //protected SubStates augmentSubStateID;
 
         public int ID { get { return stateID; } }
-        public virtual SubStates GetSubState() { return SubStates.None; }
+       // public virtual SubStates GetSubState() { return SubStates.None; }
 
         // If set (during update), ProcessStateChange will change state.
-        int? DestinationState = null;
+        protected int? DestinationState = null;
         //object[] DestinationStateParameters = null;
-        DataPackageBase DestinationStateDataPackage = null;
+        protected DataPackageBase DestinationStateDataPackage = null;
+
 
         // Called in FSMSystem.AddState
         public void SetFSM(FSMSystem fsm)
@@ -198,7 +185,7 @@ public abstract class FSMSystem
         /// <summary>
         /// Process any state changes that were made during the Update function.
         /// </summary>
-        protected void ProcessStateChange()
+        protected virtual void ProcessStateChange()
         {
             if (DestinationState != null)
             {
@@ -222,7 +209,7 @@ public abstract class FSMSystem
         public void Update()
         {
             OnUpdate();
-
+            
             ProcessStateChange();
         }
 
@@ -233,11 +220,11 @@ public abstract class FSMSystem
     {
         public abstract bool IsDone();
         
-        private new void ProcessStateChange()
+        protected override void ProcessStateChange()
         {
             if (IsDone())
             {
-                FSM.ChangeState(previousStateID);
+                FSM.ChangeState(FSM.previousState.ID);
             }
         }
     }
